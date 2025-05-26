@@ -1,0 +1,10 @@
+spark_data/
+crawler/
+es_data
+kafka_data
+nginx_data
+venv/
+zookeeper_data/
+kibana_data/
+test_python.py
+__pycache__/

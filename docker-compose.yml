@@ -1,0 +1,170 @@
+version: '3.8'
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: zookeeper_final
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    ports:
+      - "2181:2181"
+    volumes:
+      - ./zookeeper_data:/bitnami/zookeeper
+    networks:
+      - lambda_net
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka_final
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_INTERNAL://0.0.0.0:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    volumes:
+      - ./kafka_data:/bitnami/kafka
+    networks:
+      - lambda_net
+    
+  kafdrop:
+    image: obsidiandynamics/kafdrop:latest
+    container_name: kafdrop_final
+    depends_on:
+      - kafka
+    ports:
+      - "9000:9000"
+    environment:
+      KAFKA_BROKERCONNECT: "kafka:29092"
+
+  hadoop-namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    container_name: namenode_final
+    ports:
+      - "8020:8020"
+      - "9870:9870"
+    environment:
+      - CLUSTER_NAME=big_data
+      - HDFS_NAMENODE_NAME_DIR=/hadoop_network/dfs/name
+    volumes:
+      - hadoop_namenode:/hadoop/dfs/name
+    networks:
+      - lambda_net
+    hostname: namenode
+
+
+  hadoop-datanode1:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: datanode1_final
+    ports:
+      - "9864:9864"
+    depends_on:
+      - hadoop-namenode
+    environment:
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:8020
+      - HDFS_DATANODE_DATA_DIR=/hadoop_network/dfs/data1
+    volumes:
+      - hadoop_datanode:/hadoop/dfs/data1
+    hostname: datanode1
+    networks:
+      - lambda_net
+
+  hadoop-datanode2:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: datanode2_final
+    ports:
+      - "9865:9864"
+    depends_on:
+      - hadoop-namenode
+    environment:
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:8020
+      - HDFS_DATANODE_DATA_DIR=/hadoop_network/dfs/data2
+    hostname: datanode2
+    volumes:
+      - hadoop_datanode:/hadoop/dfs/data2
+    networks:
+      - lambda_net
+
+  spark-master:
+    image: bitnami/spark:3.1.1
+    container_name: spark-master_final
+    ports:
+      - "7077:7077"
+      - "8080:8080"
+    environment:
+      - SPARK_MODE=master
+      - SPARK_MASTER_HOST=spark-master
+      - SPARK_MASTER_PORT=7077
+    networks:
+      - lambda_net
+    hostname: spark-master
+
+  spark-worker:
+    image: bitnami/spark:3.1.1
+    container_name: spark-worker_final
+    hostname: spark-worker
+    depends_on:
+      - spark-master
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+    networks:
+      - lambda_net
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: elasticsearch_final
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - ./es_data:/usr/share/elasticsearch/data
+    networks:
+      - lambda_net
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: kibana_final
+    depends_on:
+      - elasticsearch
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    volumes:
+      - ./kibana_data:/usr/share/kibana/data
+    networks:
+      - lambda_net
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx_final
+    ports:
+      - "8888:80"
+    volumes:
+      - ./nginx_data:/usr/share/nginx/html:ro
+    networks:
+      - lambda_net
+
+networks:
+  lambda_net:
+    driver: bridge
+
+volumes:
+  hadoop_namenode:
+  hadoop_datanode:
+  kafka_data:
+  es_data:
+  kibana_data:
+  nginx_data:

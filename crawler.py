@@ -6,7 +6,7 @@ from selenium.common.exceptions import NoSuchElementException
 import time
 from config import EDGE_DRIVER_PATH, CRAWL_URL
 from utils import clean_text
-from kaf_producer import send_to_kafka
+from kafka_producer_consumer.kaf_producer import send_to_kafka
 
 index_question = 0
 

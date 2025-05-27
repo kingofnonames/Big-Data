@@ -3,7 +3,7 @@ from pyspark.ml import PipelineModel
 from pyspark.sql.functions import col, regexp_replace, lower, trim, udf, from_json
 from pyspark.sql.types import StringType, StructType, StructField, ArrayType, IntegerType
 
-MODEL_PATH = "/tmp/kmeans_model"
+MODEL_PATH = "/tmp/kmeans_model_new1"
 DATA_PATH = "hdfs://namenode:8020/test/hadoop/raw_data/questions_final"
 
 ES_INDEX = "questions_clustered"
